@@ -1,0 +1,62 @@
+<svg viewBox="0 0 900 460" xmlns="http://www.w3.org/2000/svg" role="img"
+     aria-label="Un spectre brut donne deux vues augmentées qui traversent le même encodeur ResNet-1D à poids partagés ; la sortie se sépare en un chemin global et un chemin local qui composent la perte VICRegL, puis l'encodeur gelé alimente une sonde d'identification d'espèce.">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#556773"/>
+    </marker>
+  </defs>
+  <style>
+    text{font-family:-apple-system,Helvetica,Arial,sans-serif;fill:#16212B;}
+    .b{fill:#FFFFFF;stroke:#556773;stroke-width:1.2;rx:5;}
+    .ba{stroke:#0E7C86;}
+    .bb{stroke:#A8571A;}
+    .t{font-size:12px;}
+    .ts{font-size:10.5px;fill:#5B6B73;}
+    .tt{font-size:12.5px;font-weight:600;}
+    .l{stroke:#16212B;stroke-width:1.3;fill:none;marker-end:url(#arrow);}
+  </style>
+
+  <rect class="b" x="330" y="10" width="240" height="46"/>
+  <text x="450" y="30" class="t tt" text-anchor="middle">spectre brut</text>
+  <text x="450" y="46" class="ts" text-anchor="middle">2000-20000 Da, TIC-norm</text>
+
+  <path class="l" d="M450,56 L450,72 L200,72 L200,88"/>
+  <path class="l" d="M450,56 L450,72 L700,72 L700,88"/>
+
+  <rect class="b ba" x="80" y="88" width="240" height="42"/>
+  <text x="200" y="114" class="t" text-anchor="middle">vue 1 (crop+warp+bruit)</text>
+  <rect class="b bb" x="580" y="88" width="240" height="42"/>
+  <text x="700" y="114" class="t" text-anchor="middle">vue 2 (crop+warp+bruit)</text>
+
+  <path class="l" d="M200,130 L200,150"/>
+  <path class="l" d="M700,130 L700,150"/>
+
+  <rect class="b ba" x="80" y="150" width="240" height="46"/>
+  <text x="200" y="177" class="t tt" text-anchor="middle">Encodeur ResNet-1D</text>
+  <rect class="b bb" x="580" y="150" width="240" height="46"/>
+  <text x="700" y="177" class="t tt" text-anchor="middle">Encodeur ResNet-1D</text>
+  <path d="M320,173 L580,173" stroke="#8A9AA6" stroke-width="1.2" stroke-dasharray="2 5" marker-end="url(#arrow)" marker-start="url(#arrow)" fill="none"/>
+  <text x="450" y="165" class="ts" text-anchor="middle">poids partagés</text>
+
+  <path class="l" d="M200,196 L200,215"/>
+  <path class="l" d="M700,196 L700,215"/>
+
+  <rect class="b" x="330" y="215" width="240" height="70" rx="5"/>
+  <text x="450" y="237" class="t tt" text-anchor="middle">Perte VICRegL</text>
+  <text x="450" y="255" class="ts" text-anchor="middle">global : invariance+variance+covariance</text>
+  <text x="450" y="269" class="ts" text-anchor="middle">local : appariement position m/z + feature</text>
+  <path d="M200,215 L200,250 L330,250" stroke="#16212B" stroke-width="1.3" fill="none" marker-end="url(#arrow)"/>
+  <path d="M700,215 L700,250 L570,250" stroke="#16212B" stroke-width="1.3" fill="none" marker-end="url(#arrow)"/>
+
+  <path class="l" d="M450,285 L450,305"/>
+
+  <rect class="b" x="330" y="305" width="240" height="42" stroke-dasharray="4 4" stroke="#6B4C8A"/>
+  <text x="450" y="331" class="t" text-anchor="middle" fill="#6B4C8A">module optionnel d'invariance</text>
+
+  <path class="l" d="M450,347 L450,367"/>
+
+  <rect class="b" x="280" y="367" width="340" height="70" rx="5"/>
+  <text x="450" y="389" class="t tt" text-anchor="middle">Encodeur gelé → sonde linéaire</text>
+  <text x="450" y="407" class="ts" text-anchor="middle">identification d'espèce, éval cross-centre</text>
+  <text x="450" y="422" class="ts" text-anchor="middle">vs RF-binned (baseline)</text>
+</svg>

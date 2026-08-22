@@ -1,0 +1,21 @@
+# Données (Dryad, volumineuses, non versionnées)
+data/
+
+# Checkpoints, logs d'entraînement, sorties d'évaluation exploratoires
+runs/
+
+# Rapports Word antérieurs, supersédés par docs/
+MS-VICRegL_comparaison.docx
+MS-VICRegL_synthese.docx
+~$*.docx
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# macOS / R / éditeurs
+.DS_Store
+.Rhistory
+.vscode/
+.idea/
