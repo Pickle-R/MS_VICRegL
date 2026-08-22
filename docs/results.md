@@ -6,13 +6,19 @@ finement tuné) sur spectres `binned_6000`, mêmes splits, mêmes labels espèce
 MALDI, DRIAMS). Centres : B (Basel-Land, 5708 spectres/337 espèces), C (Aarau, 4696/121),
 D (Viollier, 10436/54 — sous-ensemble labellisé de ~74k spectres bruts).
 
-## RESULT 1 — Stabilité intra/cross-centre
+## RESULT 1 & 2 — RÉVISÉS le 2026-08-22 (bug de données)
+
+**Ce qui suit dans cette section décrit les résultats ORIGINAUX (calculés sur données
+B corrompues). Voir "Correction de données" ci-dessous pour les valeurs actuelles.**
+Gardé pour traçabilité, mais **ne pas citer ces chiffres tels quels.**
+
+### RESULT 1 (original, invalidé) — Stabilité intra/cross-centre
 
 Sonde entraînée/testée sur 4 conditions (intra-centre et cross-centre B↔C) : VICRegL
 uniformément **0.95–0.99** (écart 0.04) contre RF-binned erratique **0.685–0.997**
 (écart 0.31), qui s'effondre même en intra-centre (B→B = 0.765). VICRegL ~8× plus stable.
 
-## RESULT 2 — Discrimination fine de sous-espèces proches
+### RESULT 2 (original, invalidé) — Discrimination fine de sous-espèces proches
 
 5-fold CV sur B∪C, encodeur gelé, 3 groupes difficiles (McNemar p<0.01) :
 
@@ -22,11 +28,72 @@ uniformément **0.95–0.99** (écart 0.04) contre RF-binned erratique **0.685�
   *S. oralis*→*S. mitis*).
 - *Klebsiella* (3 classes) : VICRegL 0.979 vs RF 0.932.
 
-**Limite de données à connaître :** les labels DRIAMS proviennent du Biotyper (MALDI),
-pas d'un séquençage. 0 *Shigella* dans B+C — le Biotyper ne peut pas la séparer d'*E.
-coli*, ce qui est la preuve même de la circularité : on ne peut pas revendiquer "battre
-le MALDI" avec des labels produits par le MALDI. Il faudrait des données appariées
-WGS (design MSclassifR/Godmer) pour trancher cette question spécifique.
+**Limite de données à connaître (indépendante du bug ci-dessous) :** les labels DRIAMS
+proviennent du Biotyper (MALDI), pas d'un séquençage. 0 *Shigella* dans B+C — le
+Biotyper ne peut pas la séparer d'*E. coli*, ce qui est la preuve même de la
+circularité : on ne peut pas revendiquer "battre le MALDI" avec des labels produits par
+le MALDI. Il faudrait des données appariées WGS (design MSclassifR/Godmer) pour
+trancher cette question spécifique.
+
+## Correction de données (2026-08-22) — RESULT 1 & 2 recalculés
+
+**Découverte :** le tarball DRIAMS-B publié sur Dryad ne contient `binned_6000` que pour
+2386 des 6416 spectres bruts (37% — vérifié directement dans l'archive `.tar.gz`, ce
+n'est pas un téléchargement corrompu). `ingest.py` remplaçait silencieusement les
+spectres manquants par des vecteurs zéro (`bin_d.get(c, np.zeros(...))`). Résultat :
+tous les résultats RF-binned impliquant B (RESULT 1, RESULT 2, une partie de RESULT 3)
+ont tourné avec ~58% de B en bruit pur côté RF. **VICRegL n'était pas affecté** — son
+entrée (`X.npy`) vient du `/raw/`, toujours complet à 100% pour B.
+
+**Correction :** reconstruction complète de `B_Xbin.npy` (les 5708 spectres, pas
+seulement les 3322 manquants — pour une méthodologie homogène à l'intérieur du centre)
+à partir du `/raw/` de B via le pipeline DSP déjà validé bit-à-bit contre R de
+[MSClassifPy](https://github.com/agodmer/MSclassifR) : `sqrt` → lissage ondelettes →
+correction de baseline SNIP (25 itérations) → calibration TIC → binning 3 Da
+(2000-20000 Da, mêmes bords que la grille VICRegL). Script :
+`scripts/11_rebuild_binned_B.py`. ~1.75 min de calcul pour les 5708 spectres.
+
+### RESULT 1 recalculé
+
+| Condition | VICRegL | RF-binned (avant) | RF-binned (après) |
+|---|---|---|---|
+| C→C | 0.980 | ~0.997 | 0.997 |
+| B→B | 0.989 | 0.765 | **0.994** |
+| C→B | 0.988 | erratique | **0.992** |
+| B→C | 0.949 | erratique | **0.994** |
+
+**Inversion complète.** RF-binned n'était pas erratique — c'était l'artefact du bug.
+Corrigé, RF-binned est stable et légèrement **supérieur** à VICRegL sur les 4
+conditions (écart ≤0.01). `docs/figures/fix_before_after_result1.png` montre l'effet
+sur B→B, le seul point dont la valeur exacte "avant" a été conservée (le JSON original
+a été écrasé par la ré-évaluation avant qu'on pense à le sauvegarder).
+
+### RESULT 2 recalculé
+
+| Groupe | VICRegL | RF (avant) | RF (après) | McNemar p (après) |
+|---|---|---|---|---|
+| *Enterobacter cloacae* complex | 0.669 | 0.438 | 0.443 | 0.79 (non signif.) |
+| *Streptococcus viridans* | 0.788 | 0.688 | **0.836** (RF gagne) | 0.054 |
+| *Klebsiella* | 0.979 | 0.932 | 0.976 | 0.625 (non signif.) |
+
+**Plus aucun résultat statistiquement significatif.** RF bat même VICRegL sur
+*Streptococcus viridans*. La revendication "VICRegL bat RF sur les 3 groupes, p<0.01"
+ne tient plus.
+
+### RESULT 3 — peu affecté
+
+Les sous-ensembles B utilisés pour l'AMR étaient petits (17-58 isolats R par
+scénario) et le résultat directionnel (RF > VICRegL) ne change pas ; seuls les
+chiffres bougent légèrement (E. coli/ceftriaxone RF 0.739→0.727, toujours ≈ Weis
+0.75). Voir tableau mis à jour dans le README.
+
+### Ce que ça ne change pas
+
+RESULT 4-8 (généralisation zéro-shot vers D) sont **inchangés côté VICRegL** (n'utilise
+jamais `Xbin`) ; RF-binned de référence bouge marginalement (0.935→0.932, dans le
+bruit). La conclusion "RF gagne le zero-shot, aucune des 5 méthodes SSL ne le bat" tient
+toujours, et est même légèrement renforcée par la correction (l'écart n'était pas un
+artefact de données côté zero-shot).
 
 ## RESULT 3 — AMR (négatif, informatif)
 
@@ -136,7 +203,7 @@ possible).
 | DANN | 0.904 |
 | CORAL | 0.914 |
 | SpeciesPrior | 0.909 |
-| RF-binned (référence) | **0.935** |
+| RF-binned (référence, corrigé) | **0.932** |
 
 Trois mécanismes structurellement différents (adversarial, alignement déterministe de
 moments, traction supervisée vers un prototype) échouent tous à battre la simple
@@ -172,6 +239,10 @@ Notre meilleure variante (0.915) est dans la même fourchette — mais :
   déterministe actuelle.
 - Fine-tuning de l'encodeur au lieu d'une sonde linéaire gelée.
 - Correction test-time (recalibration BN / CORAL à l'inférence sur les statistiques du
-  centre cible) — non tenté, bien que le plafond D (0.914-0.931) reste sous RF (0.935).
+  centre cible) — non tenté, bien que le plafond D (0.914-0.931) reste sous RF (0.932).
+- Appliquer le même pipeline DSP lourd (celui utilisé pour reconstruire B_Xbin) en
+  entrée de VICRegL lui-même, au lieu du quasi-brut actuel — untest direct de si le
+  préprocessing aide aussi l'encodeur SSL sur le zero-shot, au prix probable d'une perte
+  de structure locale fine (RESULT 2).
 - Ingestion de DRIAMS-A (jamais faite — corpus SSL actuel limité à B+C(+D), ~10-21k
   spectres, loin des ~145k initialement prévus).

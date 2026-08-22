@@ -33,43 +33,67 @@ Random Forest sur spectres `binned_6000` (format DRIAMS standard), même labels
 (Biotyper/MALDI — voir limite ci-dessous), sur DRIAMS-B, -C, -D (Dryad
 doi:10.5061/dryad.bzkh1899q).
 
+> **Note sur l'intégrité des données (2026-08-22).** Le tarball DRIAMS-B publié sur Dryad
+> ne contient de `binned_6000` que pour 2386/6416 spectres (37%) — un trou dans les
+> données source, pas un téléchargement corrompu (vérifié directement dans l'archive).
+> RF-binned a donc tourné pendant plusieurs semaines avec ~58% de B remplacé par des
+> vecteurs zéro. Corrigé en reconstruisant `binned_6000` pour tout B à partir du `/raw/`
+> (complet) via le pipeline DSP déjà validé de
+> [MSClassifPy](https://github.com/agodmer/MSclassifR) (sqrt → wavelet → SNIP → TIC →
+> binning 3 Da). **RESULT 1 et 2 ci-dessous sont les valeurs corrigées** ; l'ancien
+> écart-type gonflé de RF-binned était un artefact, pas un résultat. VICRegL n'était pas
+> affecté (son entrée vient du `/raw/`, toujours complet).
+
 ### 1 — Stabilité intra/cross-centre
 
-| | VICRegL | RF-binned |
+| Condition | VICRegL | RF-binned |
 |---|---|---|
-| Balanced accuracy, 4 conditions B↔C | **0.95–0.99** (écart 0.04) | 0.685–0.997 (écart 0.31, s'effondre même en intra-centre B→B à 0.765) |
+| C→C (in-domain) | 0.980 | 0.997 |
+| B→B (in-domain) | 0.989 | 0.994 |
+| C→B (cross-center) | 0.988 | 0.992 |
+| B→C (cross-center) | 0.949 | 0.994 |
 
 ![Balanced accuracy cross-centre](docs/figures/fig1_balanced_accuracy.png)
 
+Une fois `binned_6000` corrigé pour B, **RF-binned est stable et légèrement supérieur à
+VICRegL sur les 4 conditions** (écart ≤0.01) — l'inverse de ce qu'on rapportait avant
+correction. Voir [`docs/figures/fix_before_after_result1.png`](docs/figures/fix_before_after_result1.png)
+pour l'effet du bug sur la condition B→B (0.765 → 0.994, seul point dont on a gardé une
+trace exacte avant écrasement).
+
 ### 2 — Discrimination fine de sous-espèces proches (5-fold CV, B∪C)
 
-| Groupe | VICRegL | RF-binned |
-|---|---|---|
-| *Enterobacter cloacae* complex (5 classes) | **0.669** | 0.438 (RF fusionne tout → *E. cloacae*) |
-| *Streptococcus viridans* (3 classes) | **0.788** | 0.688 |
-| *Klebsiella* (3 classes) | **0.979** | 0.932 |
+| Groupe | VICRegL | RF-binned | McNemar p |
+|---|---|---|---|
+| *Enterobacter cloacae* complex (5 classes) | 0.669 | 0.443 | 0.79 (non signif.) |
+| *Streptococcus viridans* (3 classes) | 0.788 | **0.836** | 0.054 |
+| *Klebsiella* (3 classes) | 0.979 | 0.976 | 0.625 (non signif.) |
 
 ![Discrimination fine](docs/figures/finegrain_summary.png)
 
-McNemar p<0.01 sur les 3 groupes. **Limite à connaître :** les labels DRIAMS sont issus du
-Biotyper (MALDI), pas de séquençage — impossible de revendiquer "battre le MALDI" avec des
-labels MALDI (0 *Shigella* dans B+C, indissociable d'*E. coli* pour le Biotyper). Design
-MSclassifR/Godmer (labels moléculaires) nécessaire pour trancher cette question.
+**Aucun des trois groupes n'est statistiquement significatif après correction** — RF bat
+même VICRegL sur *Streptococcus viridans*. Le "VICRegL bat RF sur les 3 groupes, p<0.01"
+rapporté avant correction ne tient plus. **Limite à connaître par ailleurs :** les labels
+DRIAMS sont issus du Biotyper (MALDI), pas de séquençage — impossible de revendiquer
+"battre le MALDI" avec des labels MALDI (0 *Shigella* dans B+C, indissociable d'*E. coli*
+pour le Biotyper). Design MSclassifR/Godmer (labels moléculaires) nécessaire pour
+trancher cette question.
 
-### 3 — AMR (résultat négatif, informatif)
+### 3 — AMR (résultat négatif, informatif — tient après correction)
 
 Comparaison à Weis et al. 2022 (*Nat Med*) sur *K. pneumoniae* :
 
 | | VICRegL | RF-binned | Weis et al. 2022 |
 |---|---|---|---|
-| AUROC, E. coli/ceftriaxone | 0.660 | 0.739 | 0.75 (valide notre pipeline RF) |
+| AUROC, E. coli/ceftriaxone | 0.660 | 0.727 | 0.75 (valide notre pipeline RF) |
 
 ![AMR AUROC](docs/figures/amr_auroc.png)
 
-RF bat VICRegL sur les 4 scénarios testés ; la chute cross-site est identique pour les deux
-(+0.137, dans la fourchette Weis 0.065–0.225). Interprétation : l'invariance apprise
-(notamment le dropout de pics) supprime en partie le signal faible dont l'AMR a besoin —
-l'invariance est **spécifique à la tâche**, pas gratuite.
+RF bat VICRegL sur 3 des 4 scénarios testés (S. aureus/oxacillin : léger avantage
+VICRegL, 0.659 vs 0.636). Interprétation inchangée : l'invariance apprise (notamment le
+dropout de pics) supprime en partie le signal faible dont l'AMR a besoin — l'invariance
+est **spécifique à la tâche**, pas gratuite. Ce résultat, contrairement à 1 et 2, était
+peu affecté par le bug (petits sous-ensembles B utilisés pour l'AMR).
 
 ### 4 — Généralisation zéro-shot à un centre jamais vu (DRIAMS-D)
 
@@ -85,7 +109,7 @@ jamais vu même en non-labellisé pour la 1ère condition) :
 | + DANN (domaine-adversarial) | 0.904 |
 | + CORAL (alignement de moments) | 0.914 |
 | + prior par espèce (inspiré [DALMA](https://arxiv.org/abs/2608.08182)) | 0.909 |
-| RF-binned (référence, indépendant de l'encodeur) | **0.935** |
+| RF-binned (référence, indépendant de l'encodeur, corrigé) | **0.932** |
 
 **Aucune des méthodes testées ne bat RF-binned sur ce transfert.** Fait notable : un
 classifieur de domaine entraîné *après coup* sur les features gelées les sépare presque
@@ -102,22 +126,27 @@ d'invariance *en ligne* peut être totalement déconnecté du résultat *hors-li
 
 Sur la configuration la plus proche de la nôtre (sources DRIAMS poolées → DRIAMS-D), notre
 meilleure variante (0.915) est dans la même fourchette que le chiffre publié par DALMA
-(0.911) — **mais ce n'est pas la même tâche** (sources, espèces et méthode différentes ;
-voir réserves dans `docs/results.md`). C'est aussi, pour DALMA comme pour nous, le point de
-comparaison le plus *facile* de leur benchmark — leurs vrais gains apparaissent sur des
-transferts inter-pays/instruments qu'on n'a pas testés.
+(0.911), et RF-binned corrigé (0.932) reste légèrement au-dessus des deux — **mais ce
+n'est pas la même tâche** (sources, espèces et méthode différentes ; voir réserves dans
+`docs/results.md`). C'est aussi, pour DALMA comme pour nous, le point de comparaison le
+plus *facile* de leur benchmark — leurs vrais gains apparaissent sur des transferts
+inter-pays/instruments qu'on n'a pas testés.
 
 ## Ce qui tient, ce qui reste ouvert
 
-- **Solide :** stabilité cross-centre (1) et discrimination fine (2), sans pré-traitement
-  DSP lourd — complémentaire à DALMA, qui n'a qu'une représentation globale.
-- **Négatif mais informatif :** AMR (3), et la généralisation zéro-shot stricte (4) — cinq
-  mécanismes différents échouent au même endroit, ce qui pointe vers quelque chose de
-  structurel (probablement des différences systématiques de bas niveau, instrument/
-  calibration) plutôt qu'un mauvais choix de régulateur.
-- **Pas encore testé :** fine-tuning (sonde non gelée), correction test-time à
-  l'inférence, prior par espèce variationnel (vraie KL, DALMA-fidèle), corpus DRIAMS-A
-  (jamais ingéré — le corpus SSL actuel ne fait que B+C(+D), ~10-21k spectres).
+- **Solide :** RF-binned (pipeline DSP lourd) est stable et robuste en intra/cross-centre
+  (1) une fois les données corrigées — ce n'est plus VICRegL qui a l'avantage ici. La
+  généralisation zéro-shot stricte (4) reste le point où le préprocessing lourd bat
+  toutes les variantes SSL testées.
+- **Ouvert, pas tranché :** discrimination fine (2) — aucun des 3 groupes n'est
+  statistiquement significatif après correction ; ni VICRegL ni RF ne l'emporte
+  clairement. AMR (3) reste défavorable à VICRegL (invariance spécifique à la tâche).
+- **Pas encore testé :** appliquer le même pipeline DSP lourd en entrée de VICRegL
+  (au lieu du RF) — untest direct de "le préprocessing aide-t-il aussi l'encodeur SSL,
+  au prix de quelle perte de structure locale ?" ; fine-tuning (sonde non gelée) ;
+  correction test-time à l'inférence ; prior par espèce variationnel (vraie KL,
+  DALMA-fidèle) ; corpus DRIAMS-A (jamais ingéré — le corpus SSL actuel ne fait que
+  B+C(+D), ~10-21k spectres).
 
 ## Installation
 
