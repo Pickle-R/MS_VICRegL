@@ -29,8 +29,8 @@
      paire retenue est notée par le même critère VICReg à 3 termes.
    - combinaison : `L = α·global + (1-α)·local`, `α=0.75`.
 6. **Module optionnel d'invariance de centre** (`domain_coeff`/`species_coeff` > 0,
-   désactivés par défaut) — voir [`results.md`](results.md) RESULT 6-8 pour le pourquoi et
-   les résultats :
+   désactivés par défaut ; aucune des trois méthodes ne bat RF-binned en zero-shot —
+   voir le score-card dans le [README](../README.md)) :
    - **DANN** : tête de classification de centre derrière un gradient-reversal layer.
    - **CORAL** : alignement direct moyenne+covariance entre centres présents dans le
      batch, sans réseau auxiliaire.

@@ -29,6 +29,16 @@ directement repr_ par identité biologique — un prototype appris par espèce
 centres. Dans l'ablation de DALMA, c'est ce levier supervisé (pas leurs décodeurs
 par centre) qui porte l'essentiel de la transférabilité zero-shot.
 
+INPUT=binned change l'entrée du pré-entraînement : au lieu du quasi-brut habituel
+(X.npy, resample+TIC seulement), on utilise Xbin.npy — le pipeline DSP lourd
+(sqrt -> wavelet -> SNIP baseline -> TIC -> binning 3 Da), le même que RF-binned,
+reconstruit pour B via scripts/11_rebuild_binned_B.py, natif DRIAMS pour C/D. Teste
+directement si le préprocessing classique aide aussi l'encodeur SSL sur le zero-shot,
+au prix probable d'une perte de structure locale fine (RESULT 2). Les augmentations
+(simulateurs d'artefacts) restent appliquées par-dessus, sur un signal déjà
+partiellement corrigé — un changement de régime pas garanti d'être cohérent avec
+leurs amplitudes par défaut, à surveiller dans les logs (var/cov/inv).
+
 Sortie -> runs/pretrain_BCD/ckpt.pt (ou runs/<RUN_NAME> si surchargé)
 
 Usage:
@@ -36,7 +46,7 @@ Usage:
     DOMAIN_COEFF=1.0 DOMAIN_METHOD=coral python scripts/09_ssl_BCD.py    # CORAL (RESULT 7 : négatif)
     DOMAIN_COEFF=1.0 python scripts/09_ssl_BCD.py                       # DANN (RESULT 6 : négatif)
     SPECIES_COEFF=1.0 python scripts/09_ssl_BCD.py                      # prior par espèce (DALMA-inspiré)
-    SPECIES_COEFF=1.0 RUN_NAME=pretrain_BCD_species python scripts/09_ssl_BCD.py
+    INPUT=binned python scripts/09_ssl_BCD.py                           # entrée = préprocessing DSP lourd
 """
 import os
 import sys
@@ -63,8 +73,11 @@ def main():
     domain_coeff = float(os.environ.get("DOMAIN_COEFF", "0.0"))
     domain_method = os.environ.get("DOMAIN_METHOD", "dann")
     species_coeff = float(os.environ.get("SPECIES_COEFF", "0.0"))
+    input_kind = os.environ.get("INPUT", "raw")  # "raw" ou "binned"
 
     name_bits = []
+    if input_kind == "binned":
+        name_bits.append("binned")
     if domain_coeff > 0:
         name_bits.append(domain_method)
     if species_coeff > 0:
@@ -74,20 +87,24 @@ def main():
 
     species = None
     if species_coeff > 0:
-        X, _, _, domain, species, _ = load_centers_with_domain_species(centers)
+        X, Xb, _, domain, species, _ = load_centers_with_domain_species(centers)
         if domain_coeff == 0:
             domain = None
     elif domain_coeff > 0:
-        X, _, _, domain = load_centers_with_domain(centers)
+        X, Xb, _, domain = load_centers_with_domain(centers)
     else:
-        X, _, _ = load_centers(centers)
+        X, Xb, _ = load_centers(centers)
         domain = None
+    if input_kind == "binned":
+        X = Xb
 
     cfg = medium_config()  # iso-config avec runs/pretrain
     if domain_coeff > 0 or species_coeff > 0:
         cfg = replace(cfg, loss=replace(cfg.loss, domain_coeff=domain_coeff, domain_method=domain_method,
                                         species_coeff=species_coeff))
     tags = []
+    if input_kind == "binned":
+        tags.append("entrée=binned_6000 (DSP lourd)")
     if domain is not None:
         tags.append(f"{domain_method.upper()} domain_coeff={domain_coeff}")
     if species is not None:
