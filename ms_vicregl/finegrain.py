@@ -77,7 +77,12 @@ def _mcnemar(y, pa, pb):
             "pvalue": float(res.pvalue), "statistic": float(res.statistic)}
 
 
-def run_finegrain(run_name="pretrain", seed=0, n_splits=5):
+def run_finegrain(run_name="pretrain", seed=0, n_splits=5, n_segments=1):
+    """n_segments=1 (comportement historique, RESULT 2) : sur ces petits groupes
+    (quelques centaines d'échantillons), la résolution spatiale max ("max") a été
+    testée et fait légèrement RÉGRESSER 2/3 groupes (sur-apprentissage de la sonde
+    en haute dimension) -- contrairement à l'ID cross-centre (analysis.py) où elle
+    aide nettement. Passer n_segments="max" explicitement pour comparer."""
     device = get_device()
     enc = load_encoder(run_name)
     X, Xb, meta = load_centers(["C", "B"])
@@ -90,7 +95,7 @@ def run_finegrain(run_name="pretrain", seed=0, n_splits=5):
             continue
         le = LabelEncoder().fit([s for s in species if s in set(sp_all[mask])])
         y = le.transform(sp_all[mask])
-        F = extract_features(enc, X[mask], device=device)
+        F = extract_features(enc, X[mask], device=device, n_segments=n_segments)
         Xbg = Xb[mask]
         counts = {le.inverse_transform([k])[0]: int((y == k).sum())
                   for k in range(len(le.classes_))}

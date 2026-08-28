@@ -187,12 +187,16 @@ def pretrain(X: np.ndarray, cfg=CFG, run_name: str = "pretrain",
 
 
 @torch.no_grad()
-def extract_features(encoder, X: np.ndarray, device=None, batch_size: int = 512):
-    """Représentations gelées (N, repr_dim) à partir de l'encodeur."""
+def extract_features(encoder, X: np.ndarray, device=None, batch_size: int = 512,
+                      n_segments: int | str = "max"):
+    """Représentations gelées à partir de l'encodeur : (N, n_segments*repr_dim),
+    n_segments="max" par défaut = résolution spatiale complète de la carte locale
+    (cf. ResNet1DEncoder.represent_segments). n_segments=1 retrouve l'ancien
+    comportement (une seule moyenne globale, aucune position)."""
     device = device or get_device()
     encoder = encoder.to(device).eval()
     feats = []
     for i in range(0, X.shape[0], batch_size):
         xb = torch.from_numpy(np.asarray(X[i:i + batch_size], dtype=np.float32)).to(device)
-        feats.append(encoder.represent(xb).cpu().numpy())
+        feats.append(encoder.represent_segments(xb, n_segments).cpu().numpy())
     return np.concatenate(feats)

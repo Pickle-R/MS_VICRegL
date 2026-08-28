@@ -20,6 +20,7 @@ import numpy as np
 import pandas as pd
 
 from .config import CFG, GridConfig
+from .preprocess import snip_correct
 
 
 def _basename_code(name: str) -> str:
@@ -44,10 +45,11 @@ def _floats_fast(s: str) -> np.ndarray:
     return np.asarray(out, dtype=np.float64)
 
 
-def parse_raw(raw_bytes: bytes, edges: np.ndarray) -> np.ndarray:
-    """Spectre brut DRIAMS -> vecteur (L,) : binning par aire (histogram) + TIC.
+def parse_raw(raw_bytes: bytes, edges: np.ndarray, snip_iterations: int = 0) -> np.ndarray:
+    """Spectre brut DRIAMS -> vecteur (L,) : binning par aire (histogram) + [SNIP] + TIC.
 
     Format : 2 lignes '#', 1 ligne d'entête '"mass..." "intensity..."', puis 'm/z intensité'.
+    snip_iterations=0 (défaut) : comportement inchangé (pas de baseline removal).
     """
     txt = raw_bytes.decode("utf-8", "ignore")
     data = [ln for ln in txt.splitlines() if ln and ln[0] not in "#\""]
@@ -59,6 +61,8 @@ def parse_raw(raw_bytes: bytes, edges: np.ndarray) -> np.ndarray:
     arr = arr[: (arr.size // 2) * 2].reshape(-1, 2)
     mz, inten = arr[:, 0], arr[:, 1]
     hist, _ = np.histogram(mz, bins=edges, weights=inten)   # somme d'intensité / bin (aire)
+    if snip_iterations > 0:
+        return snip_correct(hist, snip_iterations)          # baseline SNIP puis TIC
     s = hist.sum()
     if s > 0:
         hist = hist / s                                     # normalisation TIC (somme = 1)
@@ -106,7 +110,8 @@ def ingest_tar(tar_path: Path, center: str, grid: GridConfig | None = None,
                 if "/id/" in n and n.endswith(".csv"):
                     df_id = pd.read_csv(tar.extractfile(m))
                 elif "/raw/" in n and n.endswith(".txt"):
-                    raw_d[_basename_code(n)] = parse_raw(tar.extractfile(m).read(), edges)
+                    raw_d[_basename_code(n)] = parse_raw(tar.extractfile(m).read(), edges,
+                                                          grid.snip_iterations)
                 elif "/binned_6000/" in n and n.endswith(".txt"):
                     bin_d[_basename_code(n)] = parse_binned(tar.extractfile(m).read(), grid.n_bins)
             except Exception as exc:        # un fichier corrompu ne doit pas tout arrêter

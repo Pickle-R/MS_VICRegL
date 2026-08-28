@@ -94,6 +94,33 @@ class ResNet1DEncoder(nn.Module):
         """Représentation gelée pour la sonde linéaire : (B, repr_dim)."""
         return self.forward(x).mean(dim=2)
 
+    def represent_segments(self, x, n_segments: int | str = "max"):
+        """Représentation gelée à structure spatiale : la carte locale
+        (B, repr_dim, L') est découpée en n_segments tronçons contigus le long de
+        l'axe m/z, chacun moyenné séparément puis concaténés sur les canaux ->
+        (B, n_segments * repr_dim). n_segments=1 est identique à represent()
+        (moyenne globale -- efface toute position, deux biomarqueurs distants ne
+        sont alors plus distinguables dans repr_).
+
+        n_segments="max" (défaut) : résolution spatiale MAXIMALE, un segment par
+        position de la carte locale -- L' = fmap.shape[-1], déterminé
+        automatiquement à partir de la sortie réelle de l'encodeur pour ce
+        spectre (donc de son ModelConfig.feature_len), plutôt qu'une valeur codée
+        en dur. C'est le nombre de tronçons au-delà duquel il n'y a plus rien à
+        gagner : chaque tronçon supplémentaire serait vide.
+        """
+        fmap = self.forward(x)                     # (B, d, L')
+        L = fmap.shape[-1]
+        if n_segments == "max":
+            n_segments = L
+        if n_segments > L:
+            raise ValueError(f"n_segments={n_segments} > résolution max de la "
+                             f"carte locale (feature_len={L})")
+        if n_segments <= 1:
+            return fmap.mean(dim=2)
+        chunks = torch.tensor_split(fmap, n_segments, dim=2)
+        return torch.cat([c.mean(dim=2) for c in chunks], dim=1)
+
 
 def _mlp(dims, last_bn=False):
     layers = []

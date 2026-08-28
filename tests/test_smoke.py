@@ -107,11 +107,44 @@ def test_end_to_end_probe():
     assert hist[-1]["total"] < hist[0]["total"], "la perte SSL ne décroît pas"
     ftr = extract_features(model.encoder, Xtr, device=torch.device("cpu"))
     fte = extract_features(model.encoder, Xte, device=torch.device("cpu"))
+    assert ftr.shape == (len(Xtr), cfg.model.feature_len * cfg.model.repr_dim), \
+        "extract_features doit résoudre au max (feature_len) par défaut"
     clf = make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000))
     clf.fit(ftr, ytr)
     acc = clf.score(fte, yte)
     # tâche facile (motifs séparables) : une représentation qui apprend dépasse nettement le hasard
     assert acc > 0.6, f"sonde au niveau du hasard (acc={acc:.2f}) -> représentation non discriminante"
+
+
+def test_represent_segments():
+    """n_segments=1 == represent() ; n_segments=k -> (B, k*repr_dim), concat de
+    moyennes par tronçon contigu de la carte locale ; "max" == feature_len réel
+    de la carte (déterminé depuis la sortie de l'encodeur, pas codé en dur) ;
+    n_segments > feature_len lève une erreur explicite."""
+    cfg = _tiny_cfg()
+    model = VICRegLModel(cfg.model)
+    enc = model.encoder
+    x = torch.randn(3, cfg.model.in_len)
+    base = enc.represent(x)
+    assert torch.allclose(enc.represent_segments(x, 1), base)
+    k = 4
+    seg = enc.represent_segments(x, k)
+    assert seg.shape == (3, k * cfg.model.repr_dim)
+    fmap = enc.forward(x)
+    L = fmap.shape[-1]
+    chunks = torch.tensor_split(fmap, k, dim=2)
+    expected = torch.cat([c.mean(dim=2) for c in chunks], dim=1)
+    assert torch.allclose(seg, expected)
+
+    seg_max = enc.represent_segments(x, "max")
+    assert seg_max.shape == (3, L * cfg.model.repr_dim)
+    chunks_max = torch.tensor_split(fmap, L, dim=2)
+    expected_max = torch.cat([c.mean(dim=2) for c in chunks_max], dim=1)
+    assert torch.allclose(seg_max, expected_max)
+
+    import pytest
+    with pytest.raises(ValueError):
+        enc.represent_segments(x, L + 1)
 
 
 def test_dann_backward():

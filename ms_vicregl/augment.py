@@ -1,11 +1,19 @@
 """Augmentations MALDI = simulateurs d'artefacts de centre/environnement.
 
 Chaque vue d'un spectre est construite par :
-  1. une transformation de coordonnées (crop + warp non-linéaire de l'axe m/z),
-     qui simule la dérive de calibration et fournit la correspondance de position
-     nécessaire au critère LOCAL de VICRegL ;
-  2. des perturbations d'intensité (baseline, gain, dropout de pics, bruit) qui
-     simulent matrice/détecteur/ionisation.
+  1. un warp non-linéaire lisse de l'axe m/z, seul à avoir une justification
+     physique de dérive de calibration (amplitude ~aug.warp_amp idx, cf. réalité
+     instrumentale ~1-10 Da) ; il fournit la correspondance de position quasi-
+     identité nécessaire au critère LOCAL de VICRegL ;
+  2. des perturbations d'intensité (baseline, gain, dropout de pics, bruit,
+     masquage d'un segment contigu) qui simulent matrice/détecteur/ionisation
+     et fournissent la diversité entre les deux vues nécessaire au critère
+     GLOBAL de VICRegL. Le masquage remplace un ancien crop-resize d'échelle
+     (RandomResizedCrop façon vision) : celui-ci déplaçait un pic à 10000 Da de
+     ~850 Da en médiane (p90 ~3100 Da, cf. simulation), soit 100-1000x l'ordre
+     de grandeur d'une vraie dérive de calibration — il n'y a donc aucune valeur
+     de crop_frac qui soit à la fois réaliste ET utile comme diversité de vue.
+     Le masquage donne de la diversité sans déplacer l'axe m/z.
 
 make_views() renvoie deux vues + leurs coordonnées (m/z source) pooled à la
 résolution de la carte de features (feature_len), pour l'appariement local.
@@ -27,22 +35,31 @@ def _smooth_curve(L: int, n_ctrl: int, lo: float, hi: float, rng) -> np.ndarray:
 def _coord_map(L: int, aug: AugConfig, rng) -> np.ndarray:
     """Map index de sortie -> position source (float) dans le spectre de base.
 
-    Combine un crop [s0, s0+w] et une warp lisse (dérive de calibration).
-    Les coordonnées sont en unités d'index de la grille (1 idx = 3 Da).
+    Warp lisse autour de l'identité (dérive de calibration), sans rescale
+    d'échelle. Les coordonnées sont en unités d'index de la grille (1 idx = 3 Da).
     """
-    crop_frac = rng.uniform(aug.crop_frac_min, aug.crop_frac_max)
-    w = max(2, int(L * crop_frac))
-    s0 = rng.integers(0, L - w + 1)
-    base = s0 + (w - 1) * np.arange(L) / (L - 1)                  # crop linéaire
     warp = _smooth_curve(L, aug.warp_ctrl, -aug.warp_amp, aug.warp_amp, rng)
-    return np.clip(base + warp, 0, L - 1)
+    return np.clip(np.arange(L, dtype=np.float64) + warp, 0, L - 1)
+
+
+def _apply_mask(x: np.ndarray, aug: AugConfig, rng) -> np.ndarray:
+    """Met à zéro un segment contigu aléatoire de l'axe m/z (diversité de vue)."""
+    L = x.shape[0]
+    mask_frac = rng.uniform(aug.mask_frac_min, aug.mask_frac_max)
+    m = int(L * mask_frac)
+    if m <= 0:
+        return x
+    start = rng.integers(0, L - m + 1)
+    x = x.copy()
+    x[start:start + m] = 0.0
+    return x
 
 
 def _one_view(base_x: np.ndarray, aug: AugConfig, rng):
     """Construit une vue augmentée + ses coordonnées source (longueur L)."""
     L = base_x.shape[0]
     coords = _coord_map(L, aug, rng)
-    x = np.interp(coords, np.arange(L), base_x)                  # resample (crop+warp)
+    x = np.interp(coords, np.arange(L), base_x)                  # resample (warp)
 
     # --- perturbations d'intensité (n'affectent pas les coordonnées) ---
     x = x * _smooth_curve(L, aug.gain_ctrl, 1 - aug.gain_amp, 1 + aug.gain_amp, rng)  # gain
@@ -55,6 +72,7 @@ def _one_view(base_x: np.ndarray, aug: AugConfig, rng):
     if aug.noise_std > 0:
         x = x + rng.normal(0.0, aug.noise_std * (x.std() + 1e-8), L)
     x = np.clip(x, 0.0, None)
+    x = _apply_mask(x, aug, rng)
     return x.astype(np.float32), coords.astype(np.float32)
 
 

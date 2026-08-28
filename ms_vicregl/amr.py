@@ -50,7 +50,7 @@ def load_amr(center: str) -> pd.DataFrame:
     raise RuntimeError(f"id csv introuvable pour {center}")
 
 
-def _scenario_data(center, species, drug, enc, device):
+def _scenario_data(center, species, drug, enc, device, n_segments=1):
     """Retourne (features VICRegL, binned, y binaire R=1/S=0) pour un (espèce, drug)."""
     X, Xb, meta = load_center(center)
     idf = load_amr(center).drop_duplicates("code").set_index("code")
@@ -63,7 +63,7 @@ def _scenario_data(center, species, drug, enc, device):
     y = (lab[keep] == "R").astype(int)
     if y.sum() < 5 or (1 - y).sum() < 5:        # besoin des deux classes en nombre
         return None
-    F = extract_features(enc, np.asarray(X)[keep], device=device)
+    F = extract_features(enc, np.asarray(X)[keep], device=device, n_segments=n_segments)
     return {"F": F, "Xb": np.asarray(Xb)[keep], "y": y}
 
 
@@ -93,12 +93,17 @@ def _cross_auroc(model_fn, Xtr, ytr, Xte, yte):
     return roc_auc_score(yte, p), average_precision_score(yte, p)
 
 
-def run_amr(scenarios=SCENARIOS, run_name="pretrain", seed=0):
+def run_amr(scenarios=SCENARIOS, run_name="pretrain", seed=0, n_segments=1):
+    """n_segments=1 (comportement historique, RESULT 3) : testé avec "max", l'AMR
+    RÉGRESSE légèrement (cohortes de quelques centaines d'échantillons, la sonde
+    logistique sur-apprend en haute dimension) -- contrairement à l'ID d'espèce
+    cross-centre où la résolution max aide nettement. Passer n_segments="max"
+    explicitement pour comparer."""
     device = get_device()
     enc = load_encoder(run_name)
     results = []
     for sp, drug in scenarios:
-        d = {c: _scenario_data(c, sp, drug, enc, device) for c in ("C", "B")}
+        d = {c: _scenario_data(c, sp, drug, enc, device, n_segments) for c in ("C", "B")}
         if d["C"] is None or d["B"] is None:
             continue
         rec = {"species": sp, "drug": drug,

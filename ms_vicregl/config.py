@@ -29,6 +29,8 @@ class GridConfig:
     mz_min: float = 2000.0
     mz_max: float = 20000.0
     n_bins: int = 6000          # L : longueur du vecteur d'entrée (3 Da / bin)
+    snip_iterations: int = 0    # 0 = désactivé (comportement inchangé) ; sinon nb d'itérations
+                                 # de soustraction de baseline SNIP (preprocess.py), avant TIC
 
     @property
     def edges(self):
@@ -41,8 +43,8 @@ class GridConfig:
 # --------------------------------------------------------------------------- #
 @dataclass(frozen=True)
 class AugConfig:
-    crop_frac_min: float = 0.6      # fraction de l'axe m/z conservée (crop)
-    crop_frac_max: float = 1.0
+    mask_frac_min: float = 0.0      # fraction min. de l'axe m/z masquée (segment contigu à 0)
+    mask_frac_max: float = 0.4      # fraction max. masquée (diversité de vue, sans décaler l'axe)
     warp_amp: float = 3.0           # dérive de calibration, en unités d'index (1 idx = 3 Da)
     warp_ctrl: int = 6              # points de contrôle de la warp (basse fréquence)
     baseline_amp: float = 0.25      # amplitude baseline (relative au max du spectre)
