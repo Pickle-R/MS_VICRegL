@@ -2,23 +2,30 @@
 
 ## Vue d'ensemble
 
-<img src="figures/architecture_simplified.svg" alt="Architecture simplifiée" width="640"/>
+<img src="figures/architecture_final_pipeline.svg" alt="Architecture du pipeline final" width="640"/>
 
 1. **Entrée** : spectre rééchantillonné sur une grille commune (2000–20000 Da, L=6000,
-   3 Da/bin) + normalisation TIC seulement — pas de wavelets, pas de SNIP, pas de ComBat.
+   3 Da/bin) + normalisation TIC — pas de wavelets, pas de ComBat, pas de peak-picking.
+   Soustraction de baseline **SNIP** optionnelle (`GridConfig.snip_iterations`, 0 par
+   défaut ; 150 itérations = ±450 Da retenu après validation), appliquée avant la TIC.
 2. **Augmentation** (`augment.py::make_views`) : deux vues du même spectre, chacune passée
-   par une transformation de coordonnées (crop + warp non-linéaire = dérive de
-   calibration) puis des perturbations d'intensité (baseline, gain détecteur, dropout de
-   pics, bruit). Les coordonnées m/z source sont suivies à travers le crop+warp et
-   pooled à la résolution de la carte de features (L'=47) — c'est ce qui rend
-   l'appariement de position du critère local *réel* (pas une étiquette arbitraire).
+   par un warp non-linéaire lisse (dérive de calibration, quasi-identité) puis des
+   perturbations d'intensité (baseline, gain détecteur, dropout de pics, bruit, masquage
+   d'un segment m/z contigu — remplace un ancien crop-resize qui déplaçait les pics
+   100-1000× au-delà d'une dérive réaliste). Les coordonnées m/z source sont suivies à
+   travers le warp et pooled à la résolution de la carte de features (L'=47) — c'est ce
+   qui rend l'appariement de position du critère local *réel* (pas une étiquette
+   arbitraire).
 3. **Encodeur** (`model.py::ResNet1DEncoder`) : ResNet-1D (stem + 4 stages, canaux
    64→128→256→512, 2 blocs résiduels/stage), **poids partagés** entre les deux vues,
    **pas** de stop-gradient ni de momentum (contrairement à BYOL/MoCo). Sortie : carte de
    features `(B, 512, 47)`.
 4. **Deux têtes** :
-   - `repr_ = fmap.mean(dim=2)` → **la représentation évaluée en aval** (sonde
-     linéaire) → `global_expander` (MLP 512→2048³) → embedding global `g`.
+   - `repr_ = fmap.mean(dim=2)` (moyenne globale) → utilisée pendant l'entraînement SSL
+     (`global_expander`, MLP 512→2048³ → embedding `g`) ; **en aval**, la sonde linéaire
+     utilise plutôt `represent_segments(x, n_segments="max")` — la carte locale découpée
+     en tronçons m/z contigus, moyennés puis concaténés, qui préserve de la position
+     (voir point 7).
    - `fmap` → `local_projector` (conv1×1 ×3, 512→512) → carte locale `z` `(B, 512, 47)`.
 5. **Perte VICRegL** (`loss.py`) :
    - critère **global** : VICReg classique sur `g1, g2` (invariance MSE + variance
@@ -38,9 +45,13 @@
      appris par espèce, `repr_` tiré vers lui par MSE — adaptation déterministe du prior
      conditionné de DALMA (notre encodeur n'a pas de tête de variance/reparamétrisation,
      donc pas de vraie KL possible telle quelle).
-7. **Aval** : seul `model.encoder` est conservé (poids figés) → `repr_` sur spectre brut
-   non augmenté → sonde linéaire (`StandardScaler` + `LogisticRegression`) ou RF-binned
-   sur `binned_6000`, comparés sur des splits identiques.
+7. **Aval** : seul `model.encoder` est conservé (poids figés) → spectre brut non augmenté
+   → **pooling spatial par segments m/z** (`represent_segments`, résolution max par
+   défaut pour l'identification d'espèce ; `n_segments=1`, l'ancien comportement,
+   reste utilisé pour l'AMR et la discrimination fine où les petits effectifs font
+   régresser la haute dimension) → sonde linéaire (`StandardScaler` +
+   `LogisticRegression`) ou RF-binned sur `binned_6000`, comparés sur des splits
+   identiques.
 
 ## Fidélité au papier VICReg / VICRegL
 
@@ -48,7 +59,7 @@
 |---|---|---|---|
 | Coefficients de perte | (λ,μ,ν) = (25, 25, 1) | `sim,std,cov = 25, 25, 1` | identique |
 | Poids global/local | α = 0.75 | `alpha = 0.75` | identique |
-| Correspondance locale | position (via crop) + feature (plus proche voisin), symétrisée | idem, coordonnées m/z réellement suivies à travers crop+warp | mécanisme fidèle |
+| Correspondance locale | position (via crop) + feature (plus proche voisin), symétrisée | idem, coordonnées m/z réellement suivies à travers le warp | mécanisme fidèle |
 | Top-γ | ≈ 20 (config image) | `gamma = 20` (corrigé le 2026-08-21, était 8) | identique après correction |
 | Tête expander | MLP 3 couches, 8192 | MLP 3 couches, 2048 | réduit (RAM 18 Go), assumé dans le code |
 | Dorsale | ResNet-50 (images 2D) | ResNet-1D maison, 64-128-256-512 | adaptation attendue (1D vs 2D) |
