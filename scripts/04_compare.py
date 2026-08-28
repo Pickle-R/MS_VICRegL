@@ -22,8 +22,9 @@ def main(argv):
     # CENTERS  = "seen,holdout" pour le LOCO (def: C,B)
     run_name = os.environ.get("RUN_NAME", "pretrain")
     centers = tuple(c.strip().upper() for c in os.environ.get("CENTERS", "C,B").split(","))
+    variant = os.environ.get("VARIANT", "")   # "_snip" pour l'entrée SNIP-corrigée
     out = run_comparison(run_name=run_name, centers=centers,
-                         top_n=top_n, seed=0, n_boot=1000)
+                         top_n=top_n, seed=0, n_boot=1000, variant=variant)
     print("\n=== Synthèse (balanced accuracy) ===")
     for r in out["results"]:
         v = r["preds"]["VICRegL"]["metrics"]["balanced_accuracy"]

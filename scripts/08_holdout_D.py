@@ -65,6 +65,9 @@ def main(argv):
     ap.add_argument("--top_n", type=int, default=10)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--n_boot", type=int, default=1000)
+    ap.add_argument("--variant", default="",
+                    help='"" (défaut) ou "_snip" -- quelle entrée VICRegL charger '
+                         '(cf. dataset.load_center); RF-binned inchangé')
     args = ap.parse_args(argv)
 
     if not (PROCESSED / "D_X.npy").exists():
@@ -77,7 +80,7 @@ def main(argv):
     print(f"[hold-out D] encodeur={args.run} (pré-entraîné sur B∪C, D jamais vu) "
           f"| device={device}")
 
-    data = {c: load_center(c) for c in ("B", "C", "D")}
+    data = {c: load_center(c, variant=args.variant) for c in ("B", "C", "D")}
     metas = [data[c][2] for c in ("B", "C", "D")]
     keep = common_topn_species(metas, args.top_n)
     le = LabelEncoder().fit(keep)

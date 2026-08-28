@@ -103,14 +103,16 @@ def _abbr(sp: str) -> str:
 
 
 def run_comparison(run_name: str = "pretrain", centers=("C", "B"),
-                   top_n: int = 10, seed: int = 0, n_boot: int = 1000):
+                   top_n: int = 10, seed: int = 0, n_boot: int = 1000, variant: str = ""):
+    """variant="" (défaut) ou "_snip" : quelle entrée VICRegL charger (cf.
+    dataset.load_center). RF-binned utilise toujours Xbin, inchangé."""
     device = get_device()
     enc = load_encoder(run_name)
     a, b = centers  # "C", "B"
 
     data = {}
     for c in centers:
-        X, Xb, meta = load_center(c)
+        X, Xb, meta = load_center(c, variant=variant)
         data[c] = (np.asarray(X), np.asarray(Xb), meta)
 
     keep = common_topn_species([data[c][2] for c in centers], top_n)

@@ -34,6 +34,7 @@ def main(argv):
     domain_coeff = float(os.environ.get("DOMAIN_COEFF", "0.0"))
     domain_method = os.environ.get("DOMAIN_METHOD", "dann")
     species_coeff = float(os.environ.get("SPECIES_COEFF", "0.0"))
+    variant = os.environ.get("VARIANT", "")   # "_snip" pour l'entrée SNIP-corrigée
     species = None
     if species_coeff > 0:
         X, _, meta, domain, species, _ = load_centers_with_domain_species(centers)
@@ -42,7 +43,7 @@ def main(argv):
     elif domain_coeff > 0 and len(centers) > 1:
         X, _, meta, domain = load_centers_with_domain(centers)
     else:
-        X, _, meta = load_centers(centers)
+        X, _, meta = load_centers(centers, variant=variant)
         domain = None
     tags = []
     if domain is not None:

@@ -32,6 +32,10 @@ def main():
     top_n = int(os.environ.get("TOPN", 10))
     cooldown = float(os.environ.get("COOLDOWN", 6))
     cooldown_every = int(os.environ.get("COOLDOWN_EVERY", 5))
+    variant = os.environ.get("VARIANT", "")        # "_snip" pour l'entrée SNIP-corrigée
+    run_name = os.environ.get("RUN_NAME", "pretrain")
+    gamma = os.environ.get("GAMMA")                 # override explicite (ex: 8, pour matcher un ancien run)
+    seed = os.environ.get("SEED")                    # override explicite (réplication multi-seed)
 
     if profile == "light":
         cfg = light_config(epochs=epochs, cooldown_s=cooldown, cooldown_every=cooldown_every)
@@ -40,21 +44,26 @@ def main():
     else:  # full
         cfg = replace(CFG, train=replace(CFG.train, epochs=epochs, num_workers=0,
                                          cooldown_s=cooldown, cooldown_every=cooldown_every))
+    if gamma is not None:
+        cfg = replace(cfg, loss=replace(cfg.loss, gamma=int(gamma)))
+    if seed is not None:
+        cfg = replace(cfg, train=replace(cfg.train, seed=int(seed)))
 
     centers = ["C", "B"]
-    X, _, meta = load_centers(centers)
-    print(f"=== PRÉ-ENTRAÎNEMENT [profil={profile}] ({epochs} ép) sur {centers} : "
+    X, _, meta = load_centers(centers, variant=variant)
+    print(f"=== PRÉ-ENTRAÎNEMENT [profil={profile}] ({epochs} ép) sur {centers}"
+          f"{' variant='+variant if variant else ''} : "
           f"{X.shape[0]} spectres, {meta.species.nunique()} espèces | "
           f"cooldown {cfg.train.cooldown_s}s/{cfg.train.cooldown_every}ép ===", flush=True)
 
     t0 = time.time()
-    pretrain(X, cfg=cfg, run_name="pretrain")
+    pretrain(X, cfg=cfg, run_name=run_name)
     print(f"[run_all] pré-entraînement: {(time.time()-t0)/60:.1f} min", flush=True)
 
     print("\n=== ÉVALUATION CROSS-CENTRE ===", flush=True)
-    results = run_full(run_name="pretrain", centers=("C", "B"), top_n=top_n)
+    results = run_full(run_name=run_name, centers=("C", "B"), top_n=top_n, variant=variant)
 
-    out = RUNS / "pretrain" / "eval_results.json"
+    out = RUNS / run_name / "eval_results.json"
     with open(out, "w") as f:
         json.dump(results, f, indent=2, default=str)
     print(f"\n[run_all] résultats -> {out}")

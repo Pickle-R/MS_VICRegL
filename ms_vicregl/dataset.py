@@ -15,20 +15,25 @@ from .augment import make_views
 from .config import CFG, PROCESSED
 
 
-def load_center(center: str, processed: Path | None = None):
-    """Charge (X_raw, X_bin, meta) d'un centre depuis data/processed/."""
+def load_center(center: str, processed: Path | None = None, variant: str = ""):
+    """Charge (X_raw, X_bin, meta) d'un centre depuis data/processed/.
+
+    variant="" (défaut) : {center}_X.npy inchangé. variant="_snip" : charge
+    {center}_X_snip.npy (baseline SNIP soustraite + retic, cf. preprocess.py)
+    à la place -- même meta/Xbin, seule l'entrée brute change.
+    """
     processed = processed or PROCESSED
-    X = np.load(processed / f"{center}_X.npy", mmap_mode="r")
+    X = np.load(processed / f"{center}_X{variant}.npy", mmap_mode="r")
     Xb = np.load(processed / f"{center}_Xbin.npy", mmap_mode="r")
     meta = pd.read_parquet(processed / f"{center}_meta.parquet")
     return X, Xb, meta
 
 
-def load_centers(centers):
+def load_centers(centers, variant: str = ""):
     """Concatène plusieurs centres. Retourne (X_raw, X_bin, meta concaténée)."""
     Xs, Xbs, metas = [], [], []
     for c in centers:
-        X, Xb, meta = load_center(c)
+        X, Xb, meta = load_center(c, variant=variant)
         Xs.append(np.asarray(X)); Xbs.append(np.asarray(Xb)); metas.append(meta)
     return (np.concatenate(Xs), np.concatenate(Xbs),
             pd.concat(metas, ignore_index=True))

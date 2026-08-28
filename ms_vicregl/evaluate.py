@@ -54,11 +54,11 @@ def _metrics(y_true, y_pred) -> dict:
 
 
 def cross_center(encoder, train_center: str, test_center: str,
-                 top_n: int = 10, device=None, seed: int = 0) -> dict:
+                 top_n: int = 10, device=None, seed: int = 0, variant: str = "") -> dict:
     """Entraîne sur train_center, teste sur test_center (non vu)."""
     device = device or get_device()
-    Xtr, Xbtr, mtr = load_center(train_center)
-    Xte, Xbte, mte = load_center(test_center)
+    Xtr, Xbtr, mtr = load_center(train_center, variant=variant)
+    Xte, Xbte, mte = load_center(test_center, variant=variant)
     keep = common_topn_species([mtr, mte], top_n)
     le = LabelEncoder().fit(keep)
 
@@ -85,11 +85,12 @@ def cross_center(encoder, train_center: str, test_center: str,
             "probe_vicregl": m_probe, "baseline_rf_binned": m_rf}
 
 
-def run_full(run_name: str = "pretrain", centers=("C", "B"), top_n: int = 10):
+def run_full(run_name: str = "pretrain", centers=("C", "B"), top_n: int = 10, variant: str = ""):
     """Évalue les deux directions de transfert et affiche un rapport."""
     enc = load_encoder(run_name)
     a, b = centers
-    results = [cross_center(enc, a, b, top_n), cross_center(enc, b, a, top_n)]
+    results = [cross_center(enc, a, b, top_n, variant=variant),
+              cross_center(enc, b, a, top_n, variant=variant)]
     print("\n===== ÉVALUATION CROSS-CENTRE (sonde VICRegL vs RF binned) =====")
     for r in results:
         print(f"\n  {r['train']} -> {r['test']}  "
