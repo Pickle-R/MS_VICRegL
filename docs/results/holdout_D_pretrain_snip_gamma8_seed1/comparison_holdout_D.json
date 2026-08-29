@@ -1,0 +1,234 @@
+{
+  "run": "pretrain_snip_gamma8_seed1",
+  "centers_train": [
+    "B",
+    "C"
+  ],
+  "center_test": "D",
+  "top_n": 10,
+  "species": [
+    "Escherichia coli",
+    "Staphylococcus aureus",
+    "Klebsiella pneumoniae",
+    "Proteus mirabilis",
+    "Enterococcus faecalis",
+    "Pseudomonas aeruginosa",
+    "Staphylococcus epidermidis",
+    "Enterobacter cloacae",
+    "Citrobacter koseri",
+    "Enterobacter aerogenes"
+  ],
+  "seed": 0,
+  "n_boot": 1000,
+  "device": "mps",
+  "results": [
+    {
+      "setting": "(B+C)->D",
+      "kind": "hold-out",
+      "n_train": 6314,
+      "n_test": 8797,
+      "n_classes": 10,
+      "preds": {
+        "VICRegL": {
+          "metrics": {
+            "accuracy": 0.9131522109810163,
+            "balanced_accuracy": 0.9360024987134796,
+            "f1_macro": 0.8620673714282792,
+            "f1_weighted": 0.9151368790821307,
+            "mcc": 0.898284045371103,
+            "cohen_kappa": 0.8947166704735339,
+            "balanced_accuracy_CI95": [
+              0.9298913295126219,
+              0.9420643556945729
+            ],
+            "f1_macro_CI95": [
+              0.852843535638404,
+              0.8712457068411257
+            ]
+          }
+        },
+        "RF-binned": {
+          "metrics": {
+            "accuracy": 0.9190633170399,
+            "balanced_accuracy": 0.9315847119185909,
+            "f1_macro": 0.8966649847089974,
+            "f1_weighted": 0.9191813523309255,
+            "mcc": 0.9041978144163816,
+            "cohen_kappa": 0.9006730405545418,
+            "balanced_accuracy_CI95": [
+              0.9250750770796062,
+              0.9376547068004598
+            ],
+            "f1_macro_CI95": [
+              0.8875442550926231,
+              0.9054078012405378
+            ]
+          }
+        }
+      },
+      "mcnemar": {
+        "only_A_correct": 70,
+        "only_B_correct": 122,
+        "statistic": 13.546875,
+        "pvalue": 0.00023267851145308154,
+        "exact": false
+      }
+    },
+    {
+      "setting": "B->D",
+      "kind": "hold-out",
+      "n_train": 2803,
+      "n_test": 8797,
+      "n_classes": 10,
+      "preds": {
+        "VICRegL": {
+          "metrics": {
+            "accuracy": 0.9072411049221325,
+            "balanced_accuracy": 0.9294314201236762,
+            "f1_macro": 0.8516671372687414,
+            "f1_weighted": 0.9101230626357534,
+            "mcc": 0.8914221904345816,
+            "cohen_kappa": 0.8876360721801246,
+            "balanced_accuracy_CI95": [
+              0.9230552406615194,
+              0.9354075817593757
+            ],
+            "f1_macro_CI95": [
+              0.8426476380140732,
+              0.8608206106485651
+            ]
+          }
+        },
+        "RF-binned": {
+          "metrics": {
+            "accuracy": 0.9088325565533705,
+            "balanced_accuracy": 0.9234237955990492,
+            "f1_macro": 0.8902096760442271,
+            "f1_weighted": 0.9073892132353821,
+            "mcc": 0.8923007872894624,
+            "cohen_kappa": 0.8881431051577786,
+            "balanced_accuracy_CI95": [
+              0.9164199863361323,
+              0.9295849926220227
+            ],
+            "f1_macro_CI95": [
+              0.8805599303110497,
+              0.8991750466910626
+            ]
+          }
+        }
+      },
+      "mcnemar": {
+        "only_A_correct": 62,
+        "only_B_correct": 76,
+        "statistic": 1.2246376811594204,
+        "pvalue": 0.2684524217123434,
+        "exact": false
+      }
+    },
+    {
+      "setting": "C->D",
+      "kind": "hold-out",
+      "n_train": 3511,
+      "n_test": 8797,
+      "n_classes": 10,
+      "preds": {
+        "VICRegL": {
+          "metrics": {
+            "accuracy": 0.9086052063203365,
+            "balanced_accuracy": 0.9304431371344547,
+            "f1_macro": 0.8577109673837308,
+            "f1_weighted": 0.9127840794797883,
+            "mcc": 0.8930425313353546,
+            "cohen_kappa": 0.8892879733832358,
+            "balanced_accuracy_CI95": [
+              0.9241613781771747,
+              0.9365950088095245
+            ],
+            "f1_macro_CI95": [
+              0.8488199359101494,
+              0.8662961928662679
+            ]
+          }
+        },
+        "RF-binned": {
+          "metrics": {
+            "accuracy": 0.9084915312038195,
+            "balanced_accuracy": 0.9153629811359675,
+            "f1_macro": 0.8850023071758875,
+            "f1_weighted": 0.9091623312520385,
+            "mcc": 0.891983604259572,
+            "cohen_kappa": 0.8875353912259537,
+            "balanced_accuracy_CI95": [
+              0.9080626188249487,
+              0.9222297955358911
+            ],
+            "f1_macro_CI95": [
+              0.8756538838759176,
+              0.8937392470635072
+            ]
+          }
+        }
+      },
+      "mcnemar": {
+        "only_A_correct": 102,
+        "only_B_correct": 101,
+        "statistic": 0.0,
+        "pvalue": 1.0,
+        "exact": false
+      }
+    },
+    {
+      "setting": "(B+C) in-dom",
+      "kind": "in-domain",
+      "n_train": 4419,
+      "n_test": 1895,
+      "n_classes": 10,
+      "preds": {
+        "VICRegL": {
+          "metrics": {
+            "accuracy": 0.9973614775725593,
+            "balanced_accuracy": 0.9955348747678746,
+            "f1_macro": 0.9960744163248106,
+            "f1_weighted": 0.9973604551651319,
+            "mcc": 0.996853250377956,
+            "cohen_kappa": 0.9968509008750008,
+            "balanced_accuracy_CI95": [
+              0.9871521644479514,
+              0.9997440494708519
+            ],
+            "f1_macro_CI95": [
+              0.9896300188737038,
+              0.9995454915195492
+            ]
+          }
+        },
+        "RF-binned": {
+          "metrics": {
+            "accuracy": 0.9978891820580474,
+            "balanced_accuracy": 0.9970630548004988,
+            "f1_macro": 0.9980697750076317,
+            "f1_weighted": 0.9978871623616702,
+            "mcc": 0.9974806506448236,
+            "cohen_kappa": 0.9974796392758651,
+            "balanced_accuracy_CI95": [
+              0.992204487375869,
+              0.999819844037586
+            ],
+            "f1_macro_CI95": [
+              0.9952197082636532,
+              0.9997828885614939
+            ]
+          }
+        }
+      },
+      "mcnemar": {
+        "only_A_correct": 2,
+        "only_B_correct": 3,
+        "statistic": 2.0,
+        "pvalue": 1.0,
+        "exact": true
+      }
+    }
+  ]
+}

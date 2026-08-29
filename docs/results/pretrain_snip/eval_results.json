@@ -1,0 +1,64 @@
+[
+  {
+    "train": "C",
+    "test": "B",
+    "n_classes": 10,
+    "n_train": 3580,
+    "n_test": 2821,
+    "species": [
+      "Escherichia coli",
+      "Staphylococcus aureus",
+      "Enterococcus faecalis",
+      "Klebsiella pneumoniae",
+      "Pseudomonas aeruginosa",
+      "Staphylococcus epidermidis",
+      "Proteus mirabilis",
+      "Enterobacter cloacae",
+      "Klebsiella oxytoca",
+      "Citrobacter koseri"
+    ],
+    "probe_vicregl": {
+      "acc": 0.9961006735200284,
+      "bal_acc": 0.9973388925872755,
+      "f1_macro": 0.9967829490056923,
+      "kappa": 0.9952855600583277
+    },
+    "baseline_rf_binned": {
+      "acc": 0.9957461892945764,
+      "bal_acc": 0.9922396187882916,
+      "f1_macro": 0.994139023506532,
+      "kappa": 0.994854038132897
+    }
+  },
+  {
+    "train": "B",
+    "test": "C",
+    "n_classes": 10,
+    "n_train": 2821,
+    "n_test": 3580,
+    "species": [
+      "Escherichia coli",
+      "Staphylococcus aureus",
+      "Enterococcus faecalis",
+      "Klebsiella pneumoniae",
+      "Pseudomonas aeruginosa",
+      "Staphylococcus epidermidis",
+      "Proteus mirabilis",
+      "Enterobacter cloacae",
+      "Klebsiella oxytoca",
+      "Citrobacter koseri"
+    ],
+    "probe_vicregl": {
+      "acc": 0.9946927374301676,
+      "bal_acc": 0.9948335040980721,
+      "f1_macro": 0.9894251458217053,
+      "kappa": 0.9936828847132032
+    },
+    "baseline_rf_binned": {
+      "acc": 0.9963687150837989,
+      "bal_acc": 0.9942186871731364,
+      "f1_macro": 0.991719642821647,
+      "kappa": 0.9956736231101035
+    }
+  }
+]
